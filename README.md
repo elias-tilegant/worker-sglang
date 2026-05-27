@@ -15,6 +15,7 @@ All behaviour is controlled through environment variables:
 | Environment Variable              | Description                                       | Default                               | Options                                                                                   |
 | --------------------------------- | ------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `MODEL_NAME`                      | Hugging Face model name or local path             | "meta-llama/Meta-Llama-3-8B-Instruct" | Hugging Face repo ID or local folder path                                                 |
+| `MODEL_PATH`                      | Alias for `MODEL_NAME`; forwarded as model path   |                                       | Hugging Face repo ID or local folder path                                                 |
 | `HF_TOKEN`                        | HuggingFace access token for gated/private models |                                       | Your HuggingFace access token                                                             |
 | `TOKENIZER_PATH`                  | Path of the tokenizer                             |                                       |                                                                                           |
 | `TOKENIZER_MODE`                  | Tokenizer mode                                    | "auto"                                | "auto", "slow"                                                                            |
@@ -31,7 +32,8 @@ All behaviour is controlled through environment variables:
 | `MAX_PREFILL_TOKENS`              | Max tokens in prefill batch                       | 16384                                 |                                                                                           |
 | `SCHEDULE_POLICY`                 | Request scheduling policy                         | "fcfs"                                | "lpm", "random", "fcfs", "dfs-weight"                                                     |
 | `SCHEDULE_CONSERVATIVENESS`       | Conservativeness of schedule policy               | 1.0                                   |                                                                                           |
-| `TENSOR_PARALLEL_SIZE`            | Tensor parallelism size                           | 1                                     |                                                                                           |
+| `TP_SIZE`                         | Tensor parallelism size                           | 1                                     | Preferred alias for SGLang's `--tp-size`                                                  |
+| `TENSOR_PARALLEL_SIZE`            | Tensor parallelism size                           | 1                                     | Legacy alias for `TP_SIZE`                                                                |
 | `STREAM_INTERVAL`                 | Streaming interval in token length                | 1                                     |                                                                                           |
 | `RANDOM_SEED`                     | Random seed                                       |                                       |                                                                                           |
 | `LOG_LEVEL`                       | Logging level for all loggers                     | "info"                                |                                                                                           |
@@ -51,12 +53,16 @@ All behaviour is controlled through environment variables:
 | `ENABLE_P2P_CHECK`                | Enable P2P check for GPU access                   | false                                 | boolean (true or false)                                                                   |
 | `ENABLE_FLASHINFER_MLA`           | Enable FlashInfer MLA optimization                | false                                 | boolean (true or false)                                                                   |
 | `TRITON_ATTENTION_REDUCE_IN_FP32` | Cast Triton attention reduce op to FP32           | false                                 | boolean (true or false)                                                                   |
-| `TOOL_CALL_PARSER`                | Defines the parser used to interpret responses    |                                       | "llama3", "llama4", "mistral", "qwen25", "deepseekv3"                                     |
-| `REASONING_PARSER`                | Defines the parser used for reasoning traces      |                                       | "llama3", "llama4", "mistral", "qwen25", "deepseekv3"                                     |
+| `TOOL_CALL_PARSER`                | Defines the parser used to interpret responses    |                                       | "llama3", "llama4", "mistral", "qwen25", "qwen3_coder", "deepseekv3"                     |
+| `REASONING_PARSER`                | Defines the parser used for reasoning traces      |                                       | "llama3", "llama4", "mistral", "qwen25", "qwen3", "deepseekv3"                           |
+| `SPECULATIVE_ALGORITHM`           | Speculative decoding algorithm                    |                                       | "EAGLE", "EAGLE3", "NEXTN", "STANDALONE", "NGRAM"                                       |
+| `SPECULATIVE_NUM_STEPS`           | Number of speculative draft steps                 |                                       |                                                                                           |
+| `SPECULATIVE_EAGLE_TOPK`          | Speculative branch factor                         |                                       | Use `1` when enabling `SGLANG_ENABLE_SPEC_V2=True`                                        |
+| `SPECULATIVE_NUM_DRAFT_TOKENS`    | Maximum speculative draft tokens                  |                                       |                                                                                           |
 
 ## Tool/Function Calling and Reasoning
 
-- **Tool/Function calling**: Set the `TOOL_CALL_PARSER` environment variable to match your model family. Supported values: `llama3`, `llama4`, `mistral`, `qwen25`, `deepseekv3`. If unset, this worker does not pass `--tool-call-parser` to SGLang.
+- **Tool/Function calling**: Set the `TOOL_CALL_PARSER` environment variable to match your model family. Supported values include `llama3`, `llama4`, `mistral`, `qwen25`, `qwen3_coder`, `deepseekv3`. If unset, this worker does not pass `--tool-call-parser` to SGLang.
 
   - Example (docker-compose): add `TOOL_CALL_PARSER=llama3` under `environment:`.
   - Example (RunPod Hub): set the `TOOL_CALL_PARSER` env var in the UI.
@@ -64,6 +70,26 @@ All behaviour is controlled through environment variables:
 - **Reasoning**: Set the `REASONING_PARSER` environment variable to match your model family if you want to enable reasoning traces parsing. If unset, this worker does not pass `--reasoning-parser` to SGLang.
   - Example (docker-compose): add `# REASONING_PARSER=llama3` under `environment:` (uncomment to use).
   - Example (RunPod Hub): set the `REASONING_PARSER` env var in the UI.
+
+## Qwen3.6 27B FP8 RunPod Serverless
+
+For a single 80 GB GPU, set these environment variables on the RunPod endpoint:
+
+```env
+MODEL_PATH=Qwen/Qwen3.6-27B-FP8
+PORT=8000
+TP_SIZE=1
+MEM_FRACTION_STATIC=0.85
+CONTEXT_LENGTH=32768
+REASONING_PARSER=qwen3
+TOOL_CALL_PARSER=qwen3_coder
+SPECULATIVE_ALGORITHM=NEXTN
+SPECULATIVE_NUM_STEPS=3
+SPECULATIVE_EAGLE_TOPK=1
+SPECULATIVE_NUM_DRAFT_TOKENS=4
+```
+
+If you later enable the SpecV2 scheduler with `SGLANG_ENABLE_SPEC_V2=True`, keep `SPECULATIVE_EAGLE_TOPK=1`.
 
 ## API Usage
 

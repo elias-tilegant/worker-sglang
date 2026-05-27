@@ -7,17 +7,29 @@
   "config": {
     "runsOn": "GPU",
     "containerDiskInGb": 100,
-    "gpuIds": "ADA_24",
+    "gpuIds": "NVIDIA H100 80GB HBM3,NVIDIA H100 PCIe,NVIDIA H100 NVL,NVIDIA RTX PRO 6000 Blackwell Server Edition,NVIDIA RTX PRO 6000 Blackwell Workstation Edition,NVIDIA RTX PRO 6000 Blackwell Max-Q Workstation Edition",
     "gpuCount": 1,
     "allowedCudaVersions": ["12.9", "12.8", "12.7", "12.6"],
     "env": [
       {
         "key": "MODEL_NAME",
         "input": {
-          "name": "Model",
+          "name": "Model Path",
           "type": "huggingface",
-          "description": "Hugging Face model name",
+          "description": "Hugging Face model name or local path",
+          "default": "Qwen/Qwen3.6-27B-FP8",
           "required": true
+        }
+      },
+      {
+        "key": "PORT",
+        "input": {
+          "name": "SGLang Port",
+          "type": "number",
+          "description": "Port used by the local SGLang server inside the worker",
+          "default": 8000,
+          "required": false,
+          "advanced": true
         }
       },
       {
@@ -26,7 +38,7 @@
           "name": "Tool Call Parser",
           "type": "string",
           "description": "Defines the parser used to interpret tool call responses",
-          "default": "",
+          "default": "qwen3_coder",
           "required": false,
           "advanced": true,
           "options": [
@@ -34,6 +46,7 @@
             { "value": "llama4", "label": "llama4" },
             { "value": "mistral", "label": "mistral" },
             { "value": "qwen25", "label": "qwen25" },
+            { "value": "qwen3_coder", "label": "qwen3_coder" },
             { "value": "deepseekv3", "label": "deepseekv3" }
           ]
         }
@@ -44,7 +57,7 @@
           "name": "Reasoning Parser",
           "type": "string",
           "description": "Defines the parser used to interpret reasoning traces",
-          "default": "",
+          "default": "qwen3",
           "required": false,
           "advanced": true,
           "options": [
@@ -52,8 +65,60 @@
             { "value": "llama4", "label": "llama4" },
             { "value": "mistral", "label": "mistral" },
             { "value": "qwen25", "label": "qwen25" },
+            { "value": "qwen3", "label": "qwen3" },
             { "value": "deepseekv3", "label": "deepseekv3" }
           ]
+        }
+      },
+      {
+        "key": "SPECULATIVE_ALGORITHM",
+        "input": {
+          "name": "Speculative Algorithm",
+          "type": "string",
+          "description": "Speculative decoding algorithm",
+          "default": "NEXTN",
+          "required": false,
+          "advanced": true,
+          "options": [
+            { "value": "EAGLE", "label": "EAGLE" },
+            { "value": "EAGLE3", "label": "EAGLE3" },
+            { "value": "NEXTN", "label": "NEXTN" },
+            { "value": "STANDALONE", "label": "STANDALONE" },
+            { "value": "NGRAM", "label": "NGRAM" }
+          ]
+        }
+      },
+      {
+        "key": "SPECULATIVE_NUM_STEPS",
+        "input": {
+          "name": "Speculative Num Steps",
+          "type": "number",
+          "description": "Number of speculative draft steps",
+          "default": 3,
+          "required": false,
+          "advanced": true
+        }
+      },
+      {
+        "key": "SPECULATIVE_EAGLE_TOPK",
+        "input": {
+          "name": "Speculative Eagle Top K",
+          "type": "number",
+          "description": "Speculative branch factor. Use 1 with SpecV2.",
+          "default": 1,
+          "required": false,
+          "advanced": true
+        }
+      },
+      {
+        "key": "SPECULATIVE_NUM_DRAFT_TOKENS",
+        "input": {
+          "name": "Speculative Draft Tokens",
+          "type": "number",
+          "description": "Maximum speculative draft tokens",
+          "default": 4,
+          "required": false,
+          "advanced": true
         }
       },
       {
@@ -125,7 +190,7 @@
           "name": "Context Length",
           "type": "number",
           "description": "Model's maximum context length",
-          "default": "",
+          "default": 32768,
           "required": false,
           "advanced": true
         }
@@ -179,7 +244,7 @@
           "name": "Memory Fraction Static",
           "type": "number",
           "description": "Fraction of memory for static allocation",
-          "default": "",
+          "default": 0.85,
           "required": false,
           "advanced": true
         }
@@ -252,6 +317,17 @@
           "type": "number",
           "description": "Conservativeness of schedule policy",
           "default": "",
+          "required": false,
+          "advanced": true
+        }
+      },
+      {
+        "key": "TP_SIZE",
+        "input": {
+          "name": "TP Size",
+          "type": "number",
+          "description": "Tensor parallelism size",
+          "default": 1,
           "required": false,
           "advanced": true
         }

@@ -10,7 +10,7 @@ import os
 class SGlangEngine:
     def __init__(
         self,
-        model=os.getenv("MODEL_NAME"),
+        model=os.getenv("MODEL_PATH") or os.getenv("MODEL_NAME"),
         host=os.getenv("HOST", "0.0.0.0"),
         port=int(os.getenv("PORT", 30000)),
     ):
@@ -31,38 +31,59 @@ class SGlangEngine:
             str(self.port),
         ]
 
-        # Dictionary of all possible options and their corresponding env var names
-        options = {
-            "MODEL_NAME": "--model-path",
-            "TOKENIZER_PATH": "--tokenizer-path",
-            "TOKENIZER_MODE": "--tokenizer-mode",
-            "LOAD_FORMAT": "--load-format",
-            "DTYPE": "--dtype",
-            "CONTEXT_LENGTH": "--context-length",
-            "QUANTIZATION": "--quantization",
-            "SERVED_MODEL_NAME": "--served-model-name",
-            "CHAT_TEMPLATE": "--chat-template",
-            "MEM_FRACTION_STATIC": "--mem-fraction-static",
-            "MAX_RUNNING_REQUESTS": "--max-running-requests",
-            "MAX_TOTAL_TOKENS": "--max-total-tokens",
-            "CHUNKED_PREFILL_SIZE": "--chunked-prefill-size",
-            "MAX_PREFILL_TOKENS": "--max-prefill-tokens",
-            "SCHEDULE_POLICY": "--schedule-policy",
-            "SCHEDULE_CONSERVATIVENESS": "--schedule-conservativeness",
-            "TENSOR_PARALLEL_SIZE": "--tensor-parallel-size",
-            "STREAM_INTERVAL": "--stream-interval",
-            "RANDOM_SEED": "--random-seed",
-            "LOG_LEVEL": "--log-level",
-            "LOG_LEVEL_HTTP": "--log-level-http",
-            "API_KEY": "--api-key",
-            "FILE_STORAGE_PATH": "--file-storage-path",
-            "DATA_PARALLEL_SIZE": "--data-parallel-size",
-            "LOAD_BALANCE_METHOD": "--load-balance-method",
-            "ATTENTION_BACKEND": "--attention-backend",
-            "SAMPLING_BACKEND": "--sampling-backend",
-            "TOOL_CALL_PARSER": "--tool-call-parser",
-            "REASONING_PARSER": "--reasoning-parser",
-        }
+        # Ordered option groups. The first non-empty environment variable in a
+        # group wins, which lets newer names coexist with legacy worker names.
+        option_groups = [
+            [("MODEL_PATH", "--model-path"), ("MODEL_NAME", "--model-path")],
+            [("TOKENIZER_PATH", "--tokenizer-path")],
+            [("TOKENIZER_MODE", "--tokenizer-mode")],
+            [("LOAD_FORMAT", "--load-format")],
+            [("DTYPE", "--dtype")],
+            [("CONTEXT_LENGTH", "--context-length")],
+            [("QUANTIZATION", "--quantization")],
+            [("SERVED_MODEL_NAME", "--served-model-name")],
+            [("CHAT_TEMPLATE", "--chat-template")],
+            [("MEM_FRACTION_STATIC", "--mem-fraction-static")],
+            [("MAX_RUNNING_REQUESTS", "--max-running-requests")],
+            [("MAX_TOTAL_TOKENS", "--max-total-tokens")],
+            [("CHUNKED_PREFILL_SIZE", "--chunked-prefill-size")],
+            [("MAX_PREFILL_TOKENS", "--max-prefill-tokens")],
+            [("SCHEDULE_POLICY", "--schedule-policy")],
+            [("SCHEDULE_CONSERVATIVENESS", "--schedule-conservativeness")],
+            [
+                ("TP_SIZE", "--tp-size"),
+                ("TENSOR_PARALLEL_SIZE", "--tensor-parallel-size"),
+            ],
+            [("STREAM_INTERVAL", "--stream-interval")],
+            [("RANDOM_SEED", "--random-seed")],
+            [("LOG_LEVEL", "--log-level")],
+            [("LOG_LEVEL_HTTP", "--log-level-http")],
+            [("API_KEY", "--api-key")],
+            [("FILE_STORAGE_PATH", "--file-storage-path")],
+            [("DATA_PARALLEL_SIZE", "--data-parallel-size")],
+            [("LOAD_BALANCE_METHOD", "--load-balance-method")],
+            [("ATTENTION_BACKEND", "--attention-backend")],
+            [("SAMPLING_BACKEND", "--sampling-backend")],
+            [("TOOL_CALL_PARSER", "--tool-call-parser")],
+            [("REASONING_PARSER", "--reasoning-parser")],
+            [("SPECULATIVE_ALGORITHM", "--speculative-algorithm")],
+            [("SPECULATIVE_DRAFT_MODEL_PATH", "--speculative-draft-model-path")],
+            [("SPECULATIVE_DRAFT_MODEL_REVISION", "--speculative-draft-model-revision")],
+            [("SPECULATIVE_DRAFT_LOAD_FORMAT", "--speculative-draft-load-format")],
+            [
+                (
+                    "SPECULATIVE_DRAFT_MODEL_QUANTIZATION",
+                    "--speculative-draft-model-quantization",
+                )
+            ],
+            [("SPECULATIVE_NUM_STEPS", "--speculative-num-steps")],
+            [("SPECULATIVE_EAGLE_TOPK", "--speculative-eagle-topk")],
+            [("SPECULATIVE_NUM_DRAFT_TOKENS", "--speculative-num-draft-tokens")],
+            [("SPECULATIVE_ACCEPT_THRESHOLD_SINGLE", "--speculative-accept-threshold-single")],
+            [("SPECULATIVE_ACCEPT_THRESHOLD_ACC", "--speculative-accept-threshold-acc")],
+            [("SPECULATIVE_ATTENTION_MODE", "--speculative-attention-mode")],
+            [("SPECULATIVE_TOKEN_MAP", "--speculative-token-map")],
+        ]
 
         # Boolean flags
         boolean_flags = [
@@ -79,11 +100,13 @@ class SGlangEngine:
             "TRITON_ATTENTION_REDUCE_IN_FP32",
         ]
 
-        # Add options from environment variables only if they are set
-        for env_var, option in options.items():
-            value = os.getenv(env_var)
-            if value is not None and value != "":
-                command.extend([option, value])
+        # Add options from environment variables only if they are set.
+        for option_group in option_groups:
+            for env_var, option in option_group:
+                value = os.getenv(env_var)
+                if value is not None and value != "":
+                    command.extend([option, value])
+                    break
 
         # Add boolean flags only if they are set to true
         for flag in boolean_flags:

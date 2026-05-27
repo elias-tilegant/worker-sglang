@@ -72,10 +72,10 @@ chore(deps): update requirements.txt
 - CUDA policy:
 
   - Minimum supported CUDA is 12.6.
-  - Base images must match this (e.g., `lmsysorg/sglang:vX.Y.Z-cu126`).
+  - Base images must match this (e.g., `lmsysorg/sglang:vX.Y.Z-cu126` or `lmsysorg/sglang:vX.Y.Z-cu129`).
   - Keep `allowedCudaVersions` in `hub.json` at 12.6 or higher.
 
 - Tool/function calling and reasoning:
   - `TOOL_CALL_PARSER`: required to enable tool/function calling; no runtime default is applied. If unset, `--tool-call-parser` is not passed to SGLang.
   - `REASONING_PARSER`: required to enable reasoning trace parsing; no runtime default is applied. If unset, `--reasoning-parser` is not passed to SGLang.
-  - Choose a parser matching the model family (e.g., `llama3`, `llama4`, `mistral`, `qwen25`, `deepseekv3`).
+  - Choose a parser matching the model family (e.g., `llama3`, `llama4`, `mistral`, `qwen25`, `qwen3`, `qwen3_coder`, `deepseekv3`).
