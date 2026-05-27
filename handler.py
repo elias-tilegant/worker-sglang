@@ -38,6 +38,17 @@ async def async_handler(job):
         openai_url = f"{engine.base_url}" + openai_route
         headers = {"Content-Type": "application/json"}
 
+        if openai_input is None or openai_input == {}:
+            response = requests.get(openai_url, headers=headers)
+            if response.status_code == 200:
+                yield response.json()
+            else:
+                yield {
+                    "error": f"Request to {openai_route} failed with status code {response.status_code}",
+                    "details": response.text,
+                }
+            return
+
         response = requests.post(openai_url, headers=headers, json=openai_input)
         # Process the streamed response
         if openai_input.get("stream", False):
@@ -68,8 +79,26 @@ async def async_handler(job):
                 if chunk:
                     yield chunk.decode("utf-8")
 
-    # Case 3: assume user meant the native /generate endpoint.
-    else:
+    # Case 3: payload looks like OpenAI text completions but omits the wrapper.
+    elif "prompt" in job_input:
+        completions_url = f"{engine.base_url}/v1/completions"
+        headers = {"Content-Type": "application/json"}
+
+        if "model" not in job_input:
+            job_input["model"] = engine.model or "default"
+
+        response = requests.post(completions_url, headers=headers, json=job_input)
+
+        if job_input.get("stream", False):
+            for formated_chunk in process_response(response):
+                yield formated_chunk
+        else:
+            for chunk in response.iter_lines():
+                if chunk:
+                    yield chunk.decode("utf-8")
+
+    # Case 4: native /generate endpoint.
+    elif any(key in job_input for key in ("text", "input_ids", "input_embeds")):
         generate_url = f"{engine.base_url}/generate"
         headers = {"Content-Type": "application/json"}
         # Directly pass `job_input` to `json`. Can we tell users the possible fields of `job_input`?
@@ -82,6 +111,11 @@ async def async_handler(job):
                 "error": f"Generate request failed with status code {response.status_code}",
                 "details": response.text,
             }
+    else:
+        yield {
+            "error": "Invalid input format. Provide one of: 'messages', 'prompt', 'text', 'input_ids', 'input_embeds', or 'openai_route'.",
+            "received_keys": list(job_input.keys()),
+        }
 
 
 runpod.serverless.start(

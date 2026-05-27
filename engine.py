@@ -1,9 +1,6 @@
 import subprocess
 import time
 import requests
-import openai
-import asyncio
-import aiohttp
 import os
 
 
@@ -43,6 +40,7 @@ class SGlangEngine:
             [("QUANTIZATION", "--quantization")],
             [("SERVED_MODEL_NAME", "--served-model-name")],
             [("CHAT_TEMPLATE", "--chat-template")],
+            [("JSON_MODEL_OVERRIDE_ARGS", "--json-model-override-args")],
             [("MEM_FRACTION_STATIC", "--mem-fraction-static")],
             [("MAX_RUNNING_REQUESTS", "--max-running-requests")],
             [("MAX_TOTAL_TOKENS", "--max-total-tokens")],
@@ -50,10 +48,13 @@ class SGlangEngine:
             [("MAX_PREFILL_TOKENS", "--max-prefill-tokens")],
             [("SCHEDULE_POLICY", "--schedule-policy")],
             [("SCHEDULE_CONSERVATIVENESS", "--schedule-conservativeness")],
+            [("KV_CACHE_DTYPE", "--kv-cache-dtype")],
             [
                 ("TP_SIZE", "--tp-size"),
                 ("TENSOR_PARALLEL_SIZE", "--tensor-parallel-size"),
             ],
+            [("PIPELINE_PARALLEL_SIZE", "--pipeline-parallel-size")],
+            [("EXPERT_PARALLEL_SIZE", "--expert-parallel-size")],
             [("STREAM_INTERVAL", "--stream-interval")],
             [("RANDOM_SEED", "--random-seed")],
             [("LOG_LEVEL", "--log-level")],
@@ -83,6 +84,9 @@ class SGlangEngine:
             [("SPECULATIVE_ACCEPT_THRESHOLD_ACC", "--speculative-accept-threshold-acc")],
             [("SPECULATIVE_ATTENTION_MODE", "--speculative-attention-mode")],
             [("SPECULATIVE_TOKEN_MAP", "--speculative-token-map")],
+            [("LORA_PATHS", "--lora-paths")],
+            [("NSA_PREFILL_BACKEND", "--nsa-prefill-backend")],
+            [("NSA_DECODE_BACKEND", "--nsa-decode-backend")],
         ]
 
         # Boolean flags
@@ -98,6 +102,10 @@ class SGlangEngine:
             "ENABLE_P2P_CHECK",
             "ENABLE_FLASHINFER_MLA",
             "TRITON_ATTENTION_REDUCE_IN_FP32",
+            "ENABLE_MIXED_CHUNK",
+            "ENABLE_OVERLAP",
+            "ENABLE_METRICS",
+            "ENABLE_CACHE_REPORT",
         ]
 
         # Add options from environment variables only if they are set.
@@ -105,7 +113,11 @@ class SGlangEngine:
             for env_var, option in option_group:
                 value = os.getenv(env_var)
                 if value is not None and value != "":
-                    command.extend([option, value])
+                    if env_var == "LORA_PATHS":
+                        for lora_path in value.split(","):
+                            command.extend([option, lora_path.strip()])
+                    else:
+                        command.extend([option, value])
                     break
 
         # Add boolean flags only if they are set to true
@@ -118,94 +130,41 @@ class SGlangEngine:
 
     def wait_for_server(self, timeout=900, interval=5):
         start_time = time.time()
+        health_url = f"{self.base_url}/health"
+        models_url = f"{self.base_url}/v1/models"
         while time.time() - start_time < timeout:
+            if self.process and self.process.poll() is not None:
+                raise RuntimeError(
+                    f"SGLang server process exited with code {self.process.returncode}"
+                )
+
             try:
-                response = requests.get(f"{self.base_url}/v1/models")
+                response = requests.get(health_url, timeout=5)
                 if response.status_code == 200:
                     print("Server is ready!")
                     return True
             except requests.RequestException:
                 pass
+
+            try:
+                response = requests.get(models_url, timeout=5)
+                if response.status_code == 200:
+                    print("Server is ready!")
+                    return True
+            except requests.RequestException:
+                pass
+
+            elapsed = int(time.time() - start_time)
+            print(f"Waiting for server... ({elapsed}s / {timeout}s)")
             time.sleep(interval)
         raise TimeoutError("Server failed to start within the timeout period.")
 
     def shutdown(self):
         if self.process:
             self.process.terminate()
-            self.process.wait()
+            try:
+                self.process.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait()
             print("Server shut down.")
-
-
-class OpenAIRequest:
-    def __init__(self, base_url="http://0.0.0.0:30000/v1", api_key="EMPTY"):
-        self.client = openai.Client(base_url=base_url, api_key=api_key)
-
-    async def request_chat_completions(
-        self,
-        model="default",
-        messages=None,
-        max_tokens=100,
-        stream=False,
-        frequency_penalty=0.0,
-        n=1,
-        stop=None,
-        temperature=1.0,
-        top_p=1.0,
-    ):
-        if messages is None:
-            messages = [
-                {"role": "system", "content": "You are a helpful AI assistant"},
-                {"role": "user", "content": "List 3 countries and their capitals."},
-            ]
-
-        response = self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            max_tokens=max_tokens,
-            stream=stream,
-            frequency_penalty=frequency_penalty,
-            n=n,
-            stop=stop,
-            temperature=temperature,
-            top_p=top_p,
-        )
-
-        if stream:
-            async for chunk in response:
-                yield chunk.to_dict()
-        else:
-            yield response.to_dict()
-
-    async def request_completions(
-        self,
-        model="default",
-        prompt="The capital of France is",
-        max_tokens=100,
-        stream=False,
-        frequency_penalty=0.0,
-        n=1,
-        stop=None,
-        temperature=1.0,
-        top_p=1.0,
-    ):
-        response = self.client.completions.create(
-            model=model,
-            prompt=prompt,
-            max_tokens=max_tokens,
-            stream=stream,
-            frequency_penalty=frequency_penalty,
-            n=n,
-            stop=stop,
-            temperature=temperature,
-            top_p=top_p,
-        )
-
-        if stream:
-            async for chunk in response:
-                yield chunk.to_dict()
-        else:
-            yield response.to_dict()
-
-    async def get_models(self):
-        response = await self.client.models.list()
-        return response
