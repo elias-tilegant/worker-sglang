@@ -18,6 +18,11 @@ class SGlangEngine:
         self.process = None
 
     def start_server(self):
+        speculative_enabled = bool(os.getenv("SPECULATIVE_ALGORITHM", "").strip())
+
+        if speculative_enabled and not os.getenv("SGLANG_ENABLE_SPEC_V2"):
+            os.environ["SGLANG_ENABLE_SPEC_V2"] = "1"
+
         command = [
             "python3",
             "-m",
@@ -27,6 +32,9 @@ class SGlangEngine:
             "--port",
             str(self.port),
         ]
+
+        if speculative_enabled and not os.getenv("MAMBA_SCHEDULER_STRATEGY"):
+            command.extend(["--mamba-scheduler-strategy", "extra_buffer"])
 
         # Ordered option groups. The first non-empty environment variable in a
         # group wins, which lets newer names coexist with legacy worker names.
