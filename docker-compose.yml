@@ -33,6 +33,8 @@ services:
       # - SPECULATIVE_NUM_STEPS=3
       # - SPECULATIVE_EAGLE_TOPK=1
       # - SPECULATIVE_NUM_DRAFT_TOKENS=4
+      # - SGLANG_ENABLE_SPEC_V2=1
+      # - MAMBA_SCHEDULER_STRATEGY=extra_buffer
 
       # make it work locally with <= 8 GB VRAM
       - MEM_FRACTION_STATIC=0.5

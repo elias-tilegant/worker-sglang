@@ -48,6 +48,7 @@ class SGlangEngine:
             [("MAX_PREFILL_TOKENS", "--max-prefill-tokens")],
             [("SCHEDULE_POLICY", "--schedule-policy")],
             [("SCHEDULE_CONSERVATIVENESS", "--schedule-conservativeness")],
+            [("MAMBA_SCHEDULER_STRATEGY", "--mamba-scheduler-strategy")],
             [("KV_CACHE_DTYPE", "--kv-cache-dtype")],
             [
                 ("TP_SIZE", "--tp-size"),

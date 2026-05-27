@@ -122,6 +122,32 @@
         }
       },
       {
+        "key": "SGLANG_ENABLE_SPEC_V2",
+        "input": {
+          "name": "Enable Spec V2",
+          "type": "boolean",
+          "description": "Enable SGLang SpecV2 scheduler for Qwen3.6 speculative decoding with radix cache",
+          "default": true,
+          "required": false,
+          "advanced": true
+        }
+      },
+      {
+        "key": "MAMBA_SCHEDULER_STRATEGY",
+        "input": {
+          "name": "Mamba Scheduler Strategy",
+          "type": "string",
+          "description": "Scheduler strategy required for Qwen3.6 speculative decoding with radix cache",
+          "default": "extra_buffer",
+          "required": false,
+          "advanced": true,
+          "options": [
+            { "value": "extra_buffer", "label": "extra_buffer" },
+            { "value": "no_buffer", "label": "no_buffer" }
+          ]
+        }
+      },
+      {
         "key": "TOKENIZER_PATH",
         "input": {
           "name": "Tokenizer Path",
